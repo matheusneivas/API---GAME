@@ -1,0 +1,104 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "resources": [
+    {
+      "_id": "wrk_game_tracker",
+      "_type": "workspace",
+      "name": "Game Tracker API",
+      "description": "API para tracking de jogos"
+    },
+    {
+      "_id": "env_base",
+      "_type": "environment",
+      "name": "Base Environment",
+      "data": {
+        "base_url": "http://localhost:3000/api",
+        "token": ""
+      }
+    },
+    {
+      "_id": "req_register",
+      "_type": "request",
+      "name": "Register",
+      "method": "POST",
+      "url": "{{ _.base_url }}/auth/register",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"teste@email.com\",\n  \"username\": \"usuario_teste\",\n  \"password\": \"senha123\"\n}"
+      }
+    },
+    {
+      "_id": "req_login",
+      "_type": "request",
+      "name": "Login",
+      "method": "POST",
+      "url": "{{ _.base_url }}/auth/login",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"teste@email.com\",\n  \"password\": \"senha123\"\n}"
+      }
+    },
+    {
+      "_id": "req_get_me",
+      "_type": "request",
+      "name": "Get Me",
+      "method": "GET",
+      "url": "{{ _.base_url }}/auth/me",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ]
+    },
+    {
+      "_id": "req_search_games",
+      "_type": "request",
+      "name": "Search Games",
+      "method": "GET",
+      "url": "{{ _.base_url }}/games/search?q=zelda"
+    },
+    {
+      "_id": "req_trending_games",
+      "_type": "request",
+      "name": "Trending Games",
+      "method": "GET",
+      "url": "{{ _.base_url }}/games/trending"
+    },
+    {
+      "_id": "req_create_list",
+      "_type": "request",
+      "name": "Create List",
+      "method": "POST",
+      "url": "{{ _.base_url }}/lists",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Meus Favoritos\",\n  \"description\": \"Lista dos meus jogos favoritos\",\n  \"is_public\": true\n}"
+      }
+    },
+    {
+      "_id": "req_create_review",
+      "_type": "request",
+      "name": "Create Review",
+      "method": "POST",
+      "url": "{{ _.base_url }}/reviews",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"game_id\": 3328,\n  \"rating\": 9.5,\n  \"review\": \"Jogo incrível! Uma das melhores experiências que já tive.\"\n}"
+      }
+    }
+  ]
+}
