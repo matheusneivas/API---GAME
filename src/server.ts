@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 
 import { errorHandler } from './middlewares/errorHandler';
+import { generalLimiter } from './middlewares/rateLimiter';
 
 import authRoutes from './routes/auth.routes';
 import usersRoutes from './routes/users.routes';
@@ -21,6 +22,9 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Rate limiter geral para todas as rotas da API
+app.use('/api', generalLimiter);
 
 app.get('/', (_req, res) => {
   res.json({

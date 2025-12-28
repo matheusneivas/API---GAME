@@ -44,6 +44,10 @@ export interface Game {
 let cachedToken: string | null = null;
 let tokenExpiresAt: number = 0;
 
+const gamesCache = new Map<number, { data: Game; timestamp: number }>();
+const searchCache = new Map<string, { data: Game[]; timestamp: number }>();
+const CACHE_DURATION = 1000 * 60 * 60 * 24; // 24 horas
+
 export class IGDBService {
   private async getAccessToken(): Promise<string> {
     if (cachedToken && Date.now() < tokenExpiresAt) {
@@ -132,6 +136,14 @@ export class IGDBService {
   }
 
   async searchGames(query: string, limit: number = 20): Promise<Game[]> {
+    const cacheKey = `${query}_${limit}`;
+    const cached = searchCache.get(cacheKey);
+
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      console.log(`✅ Usando cache de busca: "${query}"`);
+      return cached.data;
+    }
+
     const body = `
       fields name, summary, storyline, cover.url, rating, first_release_date,
              platforms.name, involved_companies.company.name, involved_companies.developer,
@@ -141,10 +153,21 @@ export class IGDBService {
     `;
 
     const data = await this.makeIGDBRequest('games', body);
-    return data.map((game: IGDBGame) => this.formatGame(game));
+    const games = data.map((game: IGDBGame) => this.formatGame(game));
+
+    searchCache.set(cacheKey, { data: games, timestamp: Date.now() });
+
+    return games;
   }
 
   async getGameById(id: number): Promise<Game> {
+    const cached = gamesCache.get(id);
+
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      console.log(`✅ Usando cache do jogo ID: ${id}`);
+      return cached.data;
+    }
+
     const body = `
       fields name, summary, storyline, cover.url, rating, rating_count,
              first_release_date, platforms.name,
@@ -159,7 +182,10 @@ export class IGDBService {
       throw new Error('Jogo não encontrado');
     }
 
-    return this.formatGame(data[0]);
+    const game = this.formatGame(data[0]);
+    gamesCache.set(id, { data: game, timestamp: Date.now() });
+
+    return game;
   }
 
   async getTrendingGames(limit: number = 20): Promise<Game[]> {

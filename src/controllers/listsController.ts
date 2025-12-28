@@ -2,21 +2,39 @@ import { Response } from 'express';
 import { validationResult } from 'express-validator';
 import pool from '../config/database';
 import { AuthRequest } from '../types';
+import igdbService from '../services/igdbService';
 
 export class ListsController {
   async getPublicLists(req: AuthRequest, res: Response) {
     try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const offset = (page - 1) * limit;
+
       const result = await pool.query(
         `SELECT l.*, u.username, u.avatar
          FROM lists l
          JOIN users u ON l.user_id = u.id
          WHERE l.is_public = true
-         ORDER BY l.created_at DESC`
+         ORDER BY l.created_at DESC
+         LIMIT $1 OFFSET $2`,
+        [limit, offset]
       );
+
+      const countResult = await pool.query(
+        'SELECT COUNT(*) FROM lists WHERE is_public = true'
+      );
+      const total = parseInt(countResult.rows[0].count);
 
       return res.json({
         success: true,
         data: result.rows,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
       });
     } catch (error) {
       console.error('❌ Erro ao buscar listas públicas:', error);
@@ -30,18 +48,34 @@ export class ListsController {
   async getMyLists(req: AuthRequest, res: Response) {
     try {
       const userId = req.user!.id;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const offset = (page - 1) * limit;
 
       const result = await pool.query(
         `SELECT l.*
          FROM lists l
          WHERE l.user_id = $1
-         ORDER BY l.created_at DESC`,
+         ORDER BY l.created_at DESC
+         LIMIT $2 OFFSET $3`,
+        [userId, limit, offset]
+      );
+
+      const countResult = await pool.query(
+        'SELECT COUNT(*) FROM lists WHERE user_id = $1',
         [userId]
       );
+      const total = parseInt(countResult.rows[0].count);
 
       return res.json({
         success: true,
         data: result.rows,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
       });
     } catch (error) {
       console.error('❌ Erro ao buscar minhas listas:', error);
@@ -307,6 +341,16 @@ export class ListsController {
         return res.status(403).json({
           success: false,
           error: 'Você não tem permissão para modificar esta lista',
+        });
+      }
+
+      // Validar se o jogo existe na IGDB
+      try {
+        await igdbService.getGameById(game_id);
+      } catch (error) {
+        return res.status(404).json({
+          success: false,
+          error: 'Jogo não encontrado na IGDB',
         });
       }
 

@@ -7,12 +7,13 @@ import {
   userIdParamValidation,
   uuidParamValidation,
 } from '../utils/validators';
+import { createContentLimiter } from '../middlewares/rateLimiter';
 
 const router = Router();
 
 router.get('/game/:gameId', gameIdParamValidation, reviewsController.getReviewsByGame);
 router.get('/user/:userId', userIdParamValidation, reviewsController.getReviewsByUser);
-router.post('/', authMiddleware, createReviewValidation, reviewsController.createOrUpdateReview);
+router.post('/', authMiddleware, createContentLimiter, createReviewValidation, reviewsController.createOrUpdateReview);
 router.delete('/:id', authMiddleware, uuidParamValidation, reviewsController.deleteReview);
 
 export default router;
