@@ -1,5 +1,6 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
+import manualTranslationService from './manualTranslationService';
 
 dotenv.config();
 
@@ -46,7 +47,7 @@ let tokenExpiresAt: number = 0;
 
 const gamesCache = new Map<number, { data: Game; timestamp: number }>();
 const searchCache = new Map<string, { data: Game[]; timestamp: number }>();
-const CACHE_DURATION = 1000 * 60 * 60 * 24; // 24 horas
+const CACHE_DURATION = 1000 * 60 * 60; // 1 hora
 
 export class IGDBService {
   private async getAccessToken(): Promise<string> {
@@ -71,7 +72,7 @@ export class IGDBService {
 
       console.log(`✅ Token IGDB obtido com sucesso (expira em ${response.data.expires_in}s)`);
 
-      return cachedToken;
+      return cachedToken!;
     } catch (error: any) {
       console.error('❌ Erro ao obter token IGDB:', error.response?.data || error.message);
       throw new Error('Falha ao autenticar com IGDB API');
@@ -120,6 +121,15 @@ export class IGDBService {
       ?.filter(ic => ic.developer)
       .map(ic => ic.company.name) || [];
 
+    // Traduzir gêneros e plataformas para português
+    const translatedGenres = game.genres
+      ? manualTranslationService.translateGenres(game.genres.map(g => g.name))
+      : [];
+
+    const translatedPlatforms = game.platforms
+      ? manualTranslationService.translatePlatforms(game.platforms.map(p => p.name))
+      : [];
+
     return {
       id: game.id,
       name: game.name,
@@ -129,9 +139,9 @@ export class IGDBService {
       releaseDate: game.first_release_date
         ? new Date(game.first_release_date * 1000).toISOString()
         : undefined,
-      platforms: game.platforms?.map(p => p.name) || [],
+      platforms: translatedPlatforms,
       developers,
-      genres: game.genres?.map(g => g.name) || [],
+      genres: translatedGenres,
     };
   }
 
@@ -189,12 +199,15 @@ export class IGDBService {
   }
 
   async getTrendingGames(limit: number = 20): Promise<Game[]> {
+    const oneYearAgo = Math.floor(Date.now() / 1000) - (365 * 24 * 60 * 60);
+    const now = Math.floor(Date.now() / 1000);
+
     const body = `
       fields name, summary, cover.url, rating, first_release_date,
              platforms.name, involved_companies.company.name, involved_companies.developer,
              genres.name;
-      where rating > 80 & rating_count > 100;
-      sort rating desc;
+      where rating > 75 & rating_count > 20 & first_release_date >= ${oneYearAgo} & first_release_date <= ${now};
+      sort rating_count desc;
       limit ${limit};
     `;
 
@@ -212,6 +225,203 @@ export class IGDBService {
              genres.name;
       where first_release_date >= ${threeMonthsAgo} & first_release_date <= ${now};
       sort first_release_date desc;
+      limit ${limit};
+    `;
+
+    const data = await this.makeIGDBRequest('games', body);
+    return data.map((game: IGDBGame) => this.formatGame(game));
+  }
+
+  // Jogos Multiplayer Populares
+  async getMultiplayerGames(limit: number = 20): Promise<Game[]> {
+    const twoYearsAgo = Math.floor(Date.now() / 1000) - (2 * 365 * 24 * 60 * 60);
+    const now = Math.floor(Date.now() / 1000);
+
+    const body = `
+      fields name, summary, cover.url, rating, first_release_date,
+             platforms.name, involved_companies.company.name, involved_companies.developer,
+             genres.name, game_modes;
+      where game_modes = (2) & rating > 70 & first_release_date >= ${twoYearsAgo} & first_release_date <= ${now};
+      sort rating_count desc;
+      limit ${limit};
+    `;
+
+    const data = await this.makeIGDBRequest('games', body);
+    return data.map((game: IGDBGame) => this.formatGame(game));
+  }
+
+  // Jogos Mais Aguardados
+  async getUpcomingGames(limit: number = 20): Promise<Game[]> {
+    const now = Math.floor(Date.now() / 1000);
+
+    const body = `
+      fields name, summary, cover.url, rating, first_release_date,
+             platforms.name, involved_companies.company.name, involved_companies.developer,
+             genres.name, hypes;
+      where first_release_date > ${now} & hypes > 5;
+      sort hypes desc;
+      limit ${limit};
+    `;
+
+    const data = await this.makeIGDBRequest('games', body);
+    return data.map((game: IGDBGame) => this.formatGame(game));
+  }
+
+  // Melhores RPGs
+  async getBestRPGs(limit: number = 20): Promise<Game[]> {
+    const twoYearsAgo = Math.floor(Date.now() / 1000) - (2 * 365 * 24 * 60 * 60);
+    const now = Math.floor(Date.now() / 1000);
+
+    const body = `
+      fields name, summary, cover.url, rating, first_release_date,
+             platforms.name, involved_companies.company.name, involved_companies.developer,
+             genres.name;
+      where genres = (12) & rating > 75 & first_release_date >= ${twoYearsAgo} & first_release_date <= ${now};
+      sort rating_count desc;
+      limit ${limit};
+    `;
+
+    const data = await this.makeIGDBRequest('games', body);
+    return data.map((game: IGDBGame) => this.formatGame(game));
+  }
+
+  // Melhores Jogos de Ação
+  async getBestActionGames(limit: number = 20): Promise<Game[]> {
+    const twoYearsAgo = Math.floor(Date.now() / 1000) - (2 * 365 * 24 * 60 * 60);
+    const now = Math.floor(Date.now() / 1000);
+
+    const body = `
+      fields name, summary, cover.url, rating, first_release_date,
+             platforms.name, involved_companies.company.name, involved_companies.developer,
+             genres.name;
+      where genres = (4) & rating > 75 & first_release_date >= ${twoYearsAgo} & first_release_date <= ${now};
+      sort rating_count desc;
+      limit ${limit};
+    `;
+
+    const data = await this.makeIGDBRequest('games', body);
+    return data.map((game: IGDBGame) => this.formatGame(game));
+  }
+
+  // Melhores Jogos de Aventura
+  async getBestAdventureGames(limit: number = 20): Promise<Game[]> {
+    const twoYearsAgo = Math.floor(Date.now() / 1000) - (2 * 365 * 24 * 60 * 60);
+    const now = Math.floor(Date.now() / 1000);
+
+    const body = `
+      fields name, summary, cover.url, rating, first_release_date,
+             platforms.name, involved_companies.company.name, involved_companies.developer,
+             genres.name;
+      where genres = (31) & rating > 75 & first_release_date >= ${twoYearsAgo} & first_release_date <= ${now};
+      sort rating_count desc;
+      limit ${limit};
+    `;
+
+    const data = await this.makeIGDBRequest('games', body);
+    return data.map((game: IGDBGame) => this.formatGame(game));
+  }
+
+  // Melhores Jogos de Estratégia
+  async getBestStrategyGames(limit: number = 20): Promise<Game[]> {
+    const twoYearsAgo = Math.floor(Date.now() / 1000) - (2 * 365 * 24 * 60 * 60);
+    const now = Math.floor(Date.now() / 1000);
+
+    const body = `
+      fields name, summary, cover.url, rating, first_release_date,
+             platforms.name, involved_companies.company.name, involved_companies.developer,
+             genres.name;
+      where genres = (15) & rating > 75 & first_release_date >= ${twoYearsAgo} & first_release_date <= ${now};
+      sort rating_count desc;
+      limit ${limit};
+    `;
+
+    const data = await this.makeIGDBRequest('games', body);
+    return data.map((game: IGDBGame) => this.formatGame(game));
+  }
+
+  // Melhores Jogos de Terror
+  async getBestHorrorGames(limit: number = 20): Promise<Game[]> {
+    const twoYearsAgo = Math.floor(Date.now() / 1000) - (2 * 365 * 24 * 60 * 60);
+    const now = Math.floor(Date.now() / 1000);
+
+    const body = `
+      fields name, summary, cover.url, rating, first_release_date,
+             platforms.name, involved_companies.company.name, involved_companies.developer,
+             genres.name, themes;
+      where themes = (19) & rating > 70 & first_release_date >= ${twoYearsAgo} & first_release_date <= ${now};
+      sort rating_count desc;
+      limit ${limit};
+    `;
+
+    const data = await this.makeIGDBRequest('games', body);
+    return data.map((game: IGDBGame) => this.formatGame(game));
+  }
+
+  // Exclusivos PlayStation
+  async getPlayStationGames(limit: number = 20): Promise<Game[]> {
+    const twoYearsAgo = Math.floor(Date.now() / 1000) - (2 * 365 * 24 * 60 * 60);
+    const now = Math.floor(Date.now() / 1000);
+
+    const body = `
+      fields name, summary, cover.url, rating, first_release_date,
+             platforms.name, involved_companies.company.name, involved_companies.developer,
+             genres.name;
+      where platforms = (48) & rating > 70 & first_release_date >= ${twoYearsAgo} & first_release_date <= ${now};
+      sort rating_count desc;
+      limit ${limit};
+    `;
+
+    const data = await this.makeIGDBRequest('games', body);
+    return data.map((game: IGDBGame) => this.formatGame(game));
+  }
+
+  // Exclusivos Xbox
+  async getXboxGames(limit: number = 20): Promise<Game[]> {
+    const twoYearsAgo = Math.floor(Date.now() / 1000) - (2 * 365 * 24 * 60 * 60);
+    const now = Math.floor(Date.now() / 1000);
+
+    const body = `
+      fields name, summary, cover.url, rating, first_release_date,
+             platforms.name, involved_companies.company.name, involved_companies.developer,
+             genres.name;
+      where platforms = (49) & rating > 70 & first_release_date >= ${twoYearsAgo} & first_release_date <= ${now};
+      sort rating_count desc;
+      limit ${limit};
+    `;
+
+    const data = await this.makeIGDBRequest('games', body);
+    return data.map((game: IGDBGame) => this.formatGame(game));
+  }
+
+  // Exclusivos Nintendo
+  async getNintendoGames(limit: number = 20): Promise<Game[]> {
+    const twoYearsAgo = Math.floor(Date.now() / 1000) - (2 * 365 * 24 * 60 * 60);
+    const now = Math.floor(Date.now() / 1000);
+
+    const body = `
+      fields name, summary, cover.url, rating, first_release_date,
+             platforms.name, involved_companies.company.name, involved_companies.developer,
+             genres.name;
+      where platforms = (130) & rating > 70 & first_release_date >= ${twoYearsAgo} & first_release_date <= ${now};
+      sort rating_count desc;
+      limit ${limit};
+    `;
+
+    const data = await this.makeIGDBRequest('games', body);
+    return data.map((game: IGDBGame) => this.formatGame(game));
+  }
+
+  // Jogos PC
+  async getPCGames(limit: number = 20): Promise<Game[]> {
+    const twoYearsAgo = Math.floor(Date.now() / 1000) - (2 * 365 * 24 * 60 * 60);
+    const now = Math.floor(Date.now() / 1000);
+
+    const body = `
+      fields name, summary, cover.url, rating, first_release_date,
+             platforms.name, involved_companies.company.name, involved_companies.developer,
+             genres.name;
+      where platforms = (6) & rating > 75 & first_release_date >= ${twoYearsAgo} & first_release_date <= ${now};
+      sort rating_count desc;
       limit ${limit};
     `;
 

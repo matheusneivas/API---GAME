@@ -12,6 +12,7 @@ import listsRoutes from './routes/lists.routes';
 import reviewsRoutes from './routes/reviews.routes';
 import commentsRoutes from './routes/comments.routes';
 import gamesRoutes from './routes/games.routes';
+import friendshipsRoutes from './routes/friendships.routes';
 
 dotenv.config();
 
@@ -40,6 +41,7 @@ app.use('/api/lists', listsRoutes);
 app.use('/api/reviews', reviewsRoutes);
 app.use('/api/comments', commentsRoutes);
 app.use('/api/games', gamesRoutes);
+app.use('/api/friendships', friendshipsRoutes);
 
 app.use(errorHandler);
 
@@ -47,3 +49,7 @@ app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
   console.log(`📍 http://localhost:${PORT}`);
 });
+
+
+
+

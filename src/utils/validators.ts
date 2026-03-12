@@ -30,7 +30,7 @@ export const updateProfileValidation = [
     .matches(/^[a-zA-Z0-9_]+$/)
     .withMessage('Username só pode conter letras, números e underscore'),
   body('avatar')
-    .optional()
+    .optional({ nullable: true, checkFalsy: true })
     .isURL()
     .withMessage('Avatar deve ser uma URL válida'),
   body('bio')
@@ -123,7 +123,7 @@ export const uuidParamValidation = [
 ];
 
 export const gameIdParamValidation = [
-  param('gameId')
+  param('id')
     .isInt({ min: 1 })
     .withMessage('ID do jogo deve ser um número inteiro positivo'),
 ];
@@ -139,4 +139,20 @@ export const searchQueryValidation = [
     .withMessage('Termo de busca é obrigatório')
     .isLength({ min: 2 })
     .withMessage('Termo de busca deve ter no mínimo 2 caracteres'),
+];
+
+export const sendFriendRequestValidation = [
+  body('friend_id').isUUID().withMessage('ID do amigo inválido'),
+];
+
+export const friendshipIdParamValidation = [
+  param('id').isUUID().withMessage('ID da solicitação inválido'),
+];
+
+export const friendIdParamValidation = [
+  param('friend_id').isUUID().withMessage('ID do amigo inválido'),
+];
+
+export const userIdStatusParamValidation = [
+  param('user_id').isUUID().withMessage('ID do usuário inválido'),
 ];
