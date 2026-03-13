@@ -3,6 +3,7 @@ import { validationResult } from 'express-validator';
 import pool from '../config/database';
 import { AuthRequest } from '../types';
 import igdbService from '../services/igdbService';
+import { createNotification } from './notificationsController';
 
 export class ListsController {
   async getPublicLists(req: AuthRequest, res: Response) {
@@ -368,6 +369,33 @@ export class ListsController {
           error: 'Jogo já está na lista',
         });
       }
+
+      // Notificar amigos que um jogo foi adicionado
+      try {
+        const [userInfo, gameInfo, friends] = await Promise.all([
+          pool.query('SELECT username FROM users WHERE id = $1', [userId]),
+          igdbService.getGameById(game_id),
+          pool.query(
+            `SELECT CASE WHEN user_id = $1 THEN friend_id ELSE user_id END as friend_id
+             FROM friendships WHERE (user_id = $1 OR friend_id = $1) AND status = 'accepted'`,
+            [userId]
+          ),
+        ]);
+
+        const listInfo = await pool.query('SELECT name FROM lists WHERE id = $1', [id]);
+
+        for (const friend of friends.rows) {
+          await createNotification(friend.friend_id, 'friend_game_added', {
+            user_id: userId,
+            username: userInfo.rows[0]?.username,
+            game_id,
+            game_name: gameInfo?.name || 'Desconhecido',
+            game_cover: gameInfo?.cover?.url || null,
+            list_id: id,
+            list_name: listInfo.rows[0]?.name,
+          });
+        }
+      } catch (_) {}
 
       return res.status(201).json({
         success: true,

@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { validationResult } from 'express-validator';
 import pool from '../config/database';
 import { AuthRequest } from '../types';
+import { createNotification } from './notificationsController';
 
 export class FriendshipsController {
   // Enviar solicitação de amizade
@@ -70,6 +71,15 @@ export class FriendshipsController {
         [userId, friend_id]
       );
 
+      // Buscar username de quem enviou
+      const sender = await pool.query('SELECT username, avatar FROM users WHERE id = $1', [userId]);
+      await createNotification(friend_id, 'friend_request', {
+        sender_id: userId,
+        sender_username: sender.rows[0]?.username,
+        sender_avatar: sender.rows[0]?.avatar,
+        friendship_id: result.rows[0].id,
+      });
+
       return res.status(201).json({
         success: true,
         data: result.rows[0],
@@ -119,6 +129,14 @@ export class FriendshipsController {
          RETURNING *`,
         [id]
       );
+
+      // Notificar quem enviou o pedido
+      const accepter = await pool.query('SELECT username, avatar FROM users WHERE id = $1', [userId]);
+      await createNotification(friendship.rows[0].user_id, 'friend_request_accepted', {
+        accepter_id: userId,
+        accepter_username: accepter.rows[0]?.username,
+        accepter_avatar: accepter.rows[0]?.avatar,
+      });
 
       return res.json({
         success: true,

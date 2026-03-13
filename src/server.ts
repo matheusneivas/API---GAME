@@ -13,6 +13,7 @@ import reviewsRoutes from './routes/reviews.routes';
 import commentsRoutes from './routes/comments.routes';
 import gamesRoutes from './routes/games.routes';
 import friendshipsRoutes from './routes/friendships.routes';
+import notificationsRoutes from './routes/notifications.routes';
 
 dotenv.config();
 
@@ -42,6 +43,7 @@ app.use('/api/reviews', reviewsRoutes);
 app.use('/api/comments', commentsRoutes);
 app.use('/api/games', gamesRoutes);
 app.use('/api/friendships', friendshipsRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
 app.use(errorHandler);
 
